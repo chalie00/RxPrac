@@ -18,9 +18,7 @@ class ObsView: UIViewController {
     @IBOutlet weak var logTableView: UITableView!
     @IBOutlet weak var resultTableView: UITableView!
     
-    var viewModel:ObsVM = ObsVM()
-    
-    
+    private lazy var viewModel = ObsVM(startNoObs: startNo.rx.text.asObservable(), endNoObs: endNo.rx.text.asObservable(), model: ObsModel())
     let disposeBag = DisposeBag()
     
     override func viewDidLoad() {
@@ -30,6 +28,10 @@ class ObsView: UIViewController {
         self.endNo.delegate = self
         
         defaultSetting()
+        
+        viewModel.validationText.bind(to: resultTxtLb.rx.text).disposed(by: disposeBag)
+        
+        
     }
     
     func defaultSetting() {
@@ -44,9 +46,9 @@ class ObsView: UIViewController {
         let endStr = endNo.text
         let strInt = Int(startStr!)
         let endInt = Int(endStr!)
-        
-        viewModel.generateArray(start: strInt!, end: endInt!)
-        //viewModel.generateOnNext()
+        if startStr != "" && endStr != "" {
+            viewModel.generateArray(start: strInt!, end: endInt!)
+        }
     }
     
     @IBAction func pressedOff(_ sender: UIButton) {

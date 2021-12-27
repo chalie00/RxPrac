@@ -7,17 +7,29 @@
 
 import Foundation
 import RxSwift
+import RxCocoa
 
 class ObsVM {
     
+    let validationText: Observable<String>
+    
     let disposeBag = DisposeBag()
-    var timer: Timer = Timer()
     var arrays:[Int] = []
     
-//    func createTimer() {
-//        timer = Timer.scheduledTimer(timeInterval: 1, target: self, selector: #selector(self.generateOnNext(timer:)), userInfo: nil, repeats: true)
-//    }
-    
+    init(startNoObs: Observable<String?>, endNoObs: Observable<String?>, model: ObsModel) {
+   
+        let event = Observable.combineLatest(startNoObs, endNoObs).skip(1).flatMap { startTx, endTxt -> Observable<Event<Void>> in
+            return model.validate(startNo: startTx, endNo: endTxt).materialize()
+        }.share()
+        
+        validationText = event.flatMap { event -> Observable<String> in
+            switch event {
+            case .next: return .just("Start/End OK")
+            case let .error(error as ModelError): return .just(error.errorText)
+            case .error, .completed: return .empty()
+            }
+        }.startWith("초기값을 입력해 주세요")
+    }
     
     func generateArray(start: Int, end: Int) {
         print("generate On Next Array")
@@ -29,29 +41,18 @@ class ObsVM {
         generateOnNext()
     }
         
-        
-     func generateOnNext() {
-            let publishSub = PublishSubject<Int>()
-            
-            publishSub.subscribe{
-                print($0)
-            }.disposed(by: disposeBag)
-            
-            for i in 1...arrays.count {
-                publishSub.onNext(self.arrays[i-1])
-//                delay(2.0, closure: {
-//                    print(i)
-//                    publishSub.onNext(self.arrays[i-1])
-//
-//                })
+    func generateOnNext() {
+        let scheduler = SerialDispatchQueueScheduler(qos: .default)
+        let source = Observable<Int>.interval(.milliseconds(1000), scheduler: scheduler)
+        var arrayCount = arrays.count
+        source.subscribe { event in
+            if arrayCount > 0{
+                arrayCount -= 1
+                print(event)
             }
-        }
-
-    func delay(_ delay:Double, closure:@escaping ()->()) {
-        DispatchQueue.main.asyncAfter(
-            deadline: DispatchTime.now() + Double(Int64(delay * Double(NSEC_PER_SEC))) / Double(NSEC_PER_SEC), execute: closure)
+        }.disposed(by: disposeBag)
     }
-    
+
         
 // Test Code
 //        let i = PublishSubject<Int>()
@@ -71,9 +72,6 @@ class ObsVM {
 //            s.onNext("C")
 //            i.onNext(3)
         
-
- 
-    
     
 }//End Of The Class
 
